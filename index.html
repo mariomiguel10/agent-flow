@@ -1,395 +1,458 @@
-import React, { useState } from 'react';
-import { 
-  GitBranch, 
-  GitCommit, 
-  GitMerge, 
-  ArrowRight, 
-  FileText, 
-  CheckCircle, 
-  Search, 
-  Lightbulb, 
-  Map, 
-  List, 
-  Cpu, 
-  Eye, 
-  BookOpen, 
-  PenTool, 
-  Code,
-  Users
-} from 'lucide-react';
-
-// --- DATA STRUCTURE ---
-
-const phases = {
-  discovery: { color: "bg-blue-500", text: "text-blue-600", border: "border-blue-500", label: "Fase 1: Encuadre e Investigación" },
-  ideation: { color: "bg-purple-500", text: "text-purple-600", border: "border-purple-500", label: "Fase 2: Ideación y Definición" },
-  vision: { color: "bg-amber-500", text: "text-amber-600", border: "border-amber-500", label: "Fase 3: Visión y Narrativa" },
-  delivery: { color: "bg-emerald-500", text: "text-emerald-600", border: "border-emerald-500", label: "Fase 4: Materialización" },
-};
-
-const agents = [
-  {
-    id: "scope",
-    name: "Scope Agent",
-    icon: Search,
-    phase: "discovery",
-    col: 0, 
-    row: 0,
-    desc: "Define el qué, el por qué y el alcance inicial.",
-    inputs: ["Nombre Empresa", "Industria", "Objetivos"],
-    outputs: [
-      { to: "stakeholder", name: "Handoff A: Para Stakeholders", content: "Contexto de negocio para análisis político." },
-      { to: "current", name: "Handoff B: Para Current Sol.", content: "Project Brief, Alcance y KPIs." }
-    ]
-  },
-  {
-    id: "stakeholder",
-    name: "Stakeholder Mapping",
-    icon: Users,
-    phase: "discovery",
-    col: 1, // Side branch
-    row: 1,
-    desc: "Identifica actores clave y mapa de poder.",
-    inputs: ["Handoff A (Scope Agent)"],
-    outputs: [
-      { to: "interview", name: "Handoff para Interview", content: "Lista de decisores clave y restricciones de negocio." }
-    ]
-  },
-  {
-    id: "current",
-    name: "Current Solution",
-    icon: CheckCircle,
-    phase: "discovery",
-    col: 0,
-    row: 1,
-    desc: "Auditoría de la solución actual y sus fallos.",
-    inputs: ["Handoff B (Scope Agent)"],
-    outputs: [
-      { to: "mindset", name: "Handoff para User Mindset", content: "Diagnóstico de fallos y flujos rotos." }
-    ]
-  },
-  {
-    id: "mindset",
-    name: "User Mindset",
-    icon: Users,
-    phase: "discovery",
-    col: 0,
-    row: 2,
-    desc: "Define Personas y Jobs-to-be-Done.",
-    inputs: ["Handoff (Current Solution)"],
-    outputs: [
-      { to: "benchmark", name: "Handoff para Benchmark", content: "Personas, JTBD y Top Tasks." }
-    ]
-  },
-  {
-    id: "benchmark",
-    name: "Benchmark Agent",
-    icon: Map,
-    phase: "discovery",
-    col: 0,
-    row: 3,
-    desc: "Análisis competitivo y mejores prácticas.",
-    inputs: ["Handoff (User Mindset)"],
-    outputs: [
-      { to: "interview", name: "Handoff para Interview", content: "Mejores prácticas y errores a evitar." }
-    ]
-  },
-  {
-    id: "interview",
-    name: "Interview Agent",
-    icon: GitMerge, // The merge point
-    phase: "discovery",
-    col: 0,
-    row: 4,
-    desc: "Plan de investigación (Usuarios + Negocio).",
-    inputs: ["Handoff (Benchmark)", "Handoff (Stakeholder)"],
-    outputs: [
-      { to: "insights", name: "Handoff para Insights", content: "Observaciones de campo y tensiones." }
-    ]
-  },
-  {
-    id: "insights",
-    name: "Insights Agent",
-    icon: Lightbulb,
-    phase: "discovery",
-    col: 0,
-    row: 5,
-    desc: "Síntesis: Problema y Oportunidades.",
-    inputs: ["Handoff (Interview)"],
-    outputs: [
-      { to: "ideation", name: "Handoff para Ideation", content: "Problem Statement y preguntas HMW." }
-    ]
-  },
-  {
-    id: "ideation",
-    name: "Ideation Agent",
-    icon: Lightbulb,
-    phase: "ideation",
-    col: 0,
-    row: 6,
-    desc: "Generación de conceptos divergentes.",
-    inputs: ["Handoff (Insights)"],
-    outputs: [
-      { to: "journey", name: "Handoff para User Journey", content: "Concepto Ganador (Big Idea)." }
-    ]
-  },
-  {
-    id: "journey",
-    name: "User Journey Agent",
-    icon: Map,
-    phase: "ideation",
-    col: 0,
-    row: 7,
-    desc: "Mapeo de la experiencia futura.",
-    inputs: ["Handoff (Ideation)"],
-    outputs: [
-      { to: "usecases", name: "Handoff para Use Cases", content: "Momentos de la verdad y etapas críticas." }
-    ]
-  },
-  {
-    id: "usecases",
-    name: "Use Cases Agent",
-    icon: List,
-    phase: "ideation",
-    col: 0,
-    row: 8,
-    desc: "Requisitos funcionales detallados.",
-    inputs: ["Handoff (User Journey)"],
-    outputs: [
-      { to: "architect", name: "Handoff para Architect", content: "Catálogo de Casos de Uso Priorizados." }
-    ]
-  },
-  {
-    id: "architect",
-    name: "Tech Architect Agent",
-    icon: Cpu,
-    phase: "ideation",
-    col: 0,
-    row: 9,
-    desc: "Validación técnica y arquitectura.",
-    inputs: ["Handoff (Use Cases)"],
-    outputs: [
-      { to: "envision", name: "Handoff para Envision", content: "Requisitos validados (Viables) y restricciones." }
-    ]
-  },
-  {
-    id: "envision",
-    name: "Envision Agent",
-    icon: Eye,
-    phase: "vision",
-    col: 0,
-    row: 10,
-    desc: "Visión estratégica y principios.",
-    inputs: ["Handoff (Tech Architect)"],
-    outputs: [
-      { to: "storyteller", name: "Handoff para Storyteller", content: "Vision Framework (VP, Principios)." }
-    ]
-  },
-  {
-    id: "storyteller",
-    name: "Storyteller Agent",
-    icon: BookOpen,
-    phase: "vision",
-    col: 0,
-    row: 11,
-    desc: "Narrativa persuasiva y escenarios.",
-    inputs: ["Handoff (Envision)"],
-    outputs: [
-      { to: "content", name: "Handoff para Content", content: "Escenarios de valor y arco narrativo." }
-    ]
-  },
-  {
-    id: "content",
-    name: "Content Strategy",
-    icon: PenTool,
-    phase: "vision",
-    col: 0,
-    row: 12,
-    desc: "UX Writing y tono de voz.",
-    inputs: ["Handoff (Storyteller)"],
-    outputs: [
-      { to: "prompt", name: "Handoff para Prototype", content: "Copy real, Glosario y Guía de Tono." }
-    ]
-  },
-  {
-    id: "prompt",
-    name: "Prompt to Prototype",
-    icon: Code,
-    phase: "delivery",
-    col: 0,
-    row: 13,
-    desc: "Generación del prompt de diseño final.",
-    inputs: ["Handoff (Content Strategy)"],
-    outputs: [
-      { to: "end", name: "Final Output", content: "High-Fidelity Design Prompt listo para ejecutar." }
-    ]
-  },
-];
-
-export default function AgentFlowMap() {
-  const [selectedAgent, setSelectedAgent] = useState(agents[0]);
-
-  // Helper to draw SVG lines
-  const getPath = (start, end) => {
-    const rowHeight = 100;
-    const colWidth = 120;
-    const startX = 50 + (start.col * colWidth);
-    const startY = 50 + (start.row * rowHeight);
-    const endX = 50 + (end.col * colWidth);
-    const endY = 50 + (end.row * rowHeight);
-
-    // Straight line
-    if (start.col === end.col) {
-      return `M ${startX} ${startY + 20} L ${endX} ${endY - 20}`;
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flujo de Agentes de Diseño - Mapa Interactivo</title>
+    
+    <!-- 1. Tailwind CSS para estilos -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- 2. Configuración de Import Map para que el navegador entienda 'react' y 'lucide-react' -->
+    <script type="importmap">
+    {
+      "imports": {
+        "react": "https://esm.sh/react@18.2.0",
+        "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+        "lucide-react": "https://esm.sh/lucide-react@0.292.0"
+      }
     }
+    </script>
 
-    // Branch out (Curve right)
-    if (end.col > start.col) {
-      return `M ${startX} ${startY + 20} C ${startX} ${startY + 60}, ${endX} ${endY - 60}, ${endX} ${endY - 20}`;
-    }
+    <!-- 3. Babel para traducir JSX en el navegador -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-    // Merge back (Curve left)
-    if (end.col < start.col) {
-      return `M ${startX} ${startY + 20} C ${startX} ${startY + 60}, ${endX} ${endY - 60}, ${endX} ${endY - 20}`;
-    }
-    return "";
-  };
+    <style>
+        /* Animaciones personalizadas */
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in-up {
+            animation: fadeInUp 0.3s ease-out forwards;
+        }
+        
+        /* Personalización de la barra de desplazamiento */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8; 
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-slate-800">
 
-  return (
-    <div className="flex h-screen bg-gray-50 font-sans overflow-hidden text-slate-800">
-      
-      {/* LEFT PANEL: GRAPH */}
-      <div className="flex-1 overflow-y-auto relative border-r border-gray-200 bg-white">
-        <div className="p-8 min-h-[1600px] relative">
-          <h2 className="text-2xl font-bold mb-6 text-slate-700 flex items-center gap-2">
-            <GitBranch className="w-6 h-6" /> Flujo de Agentes
-          </h2>
-          
-          {/* SVG Layer for Lines */}
-          <svg className="absolute top-0 left-0 w-full h-full pointer-events-none z-0">
-            <defs>
-              <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-                <polygon points="0 0, 10 3.5, 0 7" fill="#94a3b8" />
-              </marker>
-            </defs>
-            {agents.map(agent => {
-              return agent.outputs.map(out => {
-                const target = agents.find(a => a.id === out.to);
-                if (!target) return null;
-                return (
-                  <path 
-                    key={`${agent.id}-${target.id}`}
-                    d={getPath(agent, target)}
-                    fill="none"
-                    stroke="#cbd5e1"
-                    strokeWidth="3"
-                    markerEnd="url(#arrowhead)"
-                  />
-                );
-              });
-            })}
-          </svg>
+    <div id="root"></div>
 
-          {/* Node Layer */}
-          <div className="relative z-10 ml-8 mt-4">
-            {agents.map((agent) => (
-              <div 
-                key={agent.id}
-                className={`absolute flex items-center gap-4 cursor-pointer transition-all duration-300 hover:scale-105`}
-                style={{
-                  top: `${agent.row * 100}px`,
-                  left: `${agent.col * 120}px`,
-                }}
-                onClick={() => setSelectedAgent(agent)}
-              >
-                {/* Circle Node */}
-                <div className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg border-4 ${
-                  selectedAgent.id === agent.id ? 'ring-4 ring-offset-2 ring-blue-200 scale-110' : ''
-                } ${phases[agent.phase].color} ${phases[agent.phase].border} border-opacity-50`}>
-                  <agent.icon className="w-6 h-6 text-white" />
-                </div>
+    <!-- 4. Tu Aplicación React -->
+    <script type="text/babel" data-type="module">
+        import React, { useState } from 'react';
+        import { createRoot } from 'react-dom/client';
+        import { 
+            GitBranch, 
+            GitCommit, 
+            GitMerge, 
+            ArrowRight, 
+            FileText, 
+            CheckCircle, 
+            Search, 
+            Lightbulb, 
+            Map, 
+            List, 
+            Cpu, 
+            Eye, 
+            BookOpen, 
+            PenTool, 
+            Code,
+            Users
+        } from 'lucide-react';
 
-                {/* Label */}
-                <div className={`bg-white px-4 py-2 rounded-lg shadow-sm border border-gray-100 min-w-[180px] ${selectedAgent.id === agent.id ? 'border-blue-500 shadow-md' : ''}`}>
-                  <p className="text-xs font-bold uppercase tracking-wider text-gray-400">{phases[agent.phase].label.split(":")[0]}</p>
-                  <p className="font-semibold text-slate-700">{agent.name}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+        // --- DATA STRUCTURE ---
+        const phases = {
+            discovery: { color: "bg-blue-500", text: "text-blue-600", border: "border-blue-500", label: "Fase 1: Encuadre e Investigación" },
+            ideation: { color: "bg-purple-500", text: "text-purple-600", border: "border-purple-500", label: "Fase 2: Ideación y Definición" },
+            vision: { color: "bg-amber-500", text: "text-amber-600", border: "border-amber-500", label: "Fase 3: Visión y Narrativa" },
+            delivery: { color: "bg-emerald-500", text: "text-emerald-600", border: "border-emerald-500", label: "Fase 4: Materialización" },
+        };
 
-      {/* RIGHT PANEL: INSPECTOR */}
-      <div className="w-[450px] bg-slate-50 p-8 overflow-y-auto shadow-xl z-20">
-        {selectedAgent ? (
-          <div className="animate-fade-in-up">
-            {/* Header */}
-            <div className="mb-8">
-              <div className={`inline-block px-3 py-1 rounded-full text-xs font-bold uppercase mb-3 bg-white border ${phases[selectedAgent.phase].border} ${phases[selectedAgent.phase].text}`}>
-                {phases[selectedAgent.phase].label}
-              </div>
-              <h1 className="text-3xl font-bold text-slate-800 mb-2">{selectedAgent.name}</h1>
-              <p className="text-slate-500 text-lg leading-relaxed">{selectedAgent.desc}</p>
-            </div>
+        const agents = [
+            {
+                id: "scope",
+                name: "Scope Agent",
+                icon: Search,
+                phase: "discovery",
+                col: 0, 
+                row: 0,
+                desc: "Define el qué, el por qué y el alcance inicial.",
+                inputs: ["Nombre Empresa", "Industria", "Objetivos"],
+                outputs: [
+                    { to: "stakeholder", name: "Handoff A: Para Stakeholders", content: "Contexto de negocio para análisis político." },
+                    { to: "current", name: "Handoff B: Para Current Sol.", content: "Project Brief, Alcance y KPIs." }
+                ]
+            },
+            {
+                id: "stakeholder",
+                name: "Stakeholder Mapping",
+                icon: Users,
+                phase: "discovery",
+                col: 1, // Side branch
+                row: 1,
+                desc: "Identifica actores clave y mapa de poder.",
+                inputs: ["Handoff A (Scope Agent)"],
+                outputs: [
+                    { to: "interview", name: "Handoff para Interview", content: "Lista de decisores clave y restricciones de negocio." }
+                ]
+            },
+            {
+                id: "current",
+                name: "Current Solution",
+                icon: CheckCircle,
+                phase: "discovery",
+                col: 0,
+                row: 1,
+                desc: "Auditoría de la solución actual y sus fallos.",
+                inputs: ["Handoff B (Scope Agent)"],
+                outputs: [
+                    { to: "mindset", name: "Handoff para User Mindset", content: "Diagnóstico de fallos y flujos rotos." }
+                ]
+            },
+            {
+                id: "mindset",
+                name: "User Mindset",
+                icon: Users,
+                phase: "discovery",
+                col: 0,
+                row: 2,
+                desc: "Define Personas y Jobs-to-be-Done.",
+                inputs: ["Handoff (Current Solution)"],
+                outputs: [
+                    { to: "benchmark", name: "Handoff para Benchmark", content: "Personas, JTBD y Top Tasks." }
+                ]
+            },
+            {
+                id: "benchmark",
+                name: "Benchmark Agent",
+                icon: Map,
+                phase: "discovery",
+                col: 0,
+                row: 3,
+                desc: "Análisis competitivo y mejores prácticas.",
+                inputs: ["Handoff (User Mindset)"],
+                outputs: [
+                    { to: "interview", name: "Handoff para Interview", content: "Mejores prácticas y errores a evitar." }
+                ]
+            },
+            {
+                id: "interview",
+                name: "Interview Agent",
+                icon: GitMerge, // The merge point
+                phase: "discovery",
+                col: 0,
+                row: 4,
+                desc: "Plan de investigación (Usuarios + Negocio).",
+                inputs: ["Handoff (Benchmark)", "Handoff (Stakeholder)"],
+                outputs: [
+                    { to: "insights", name: "Handoff para Insights", content: "Observaciones de campo y tensiones." }
+                ]
+            },
+            {
+                id: "insights",
+                name: "Insights Agent",
+                icon: Lightbulb,
+                phase: "discovery",
+                col: 0,
+                row: 5,
+                desc: "Síntesis: Problema y Oportunidades.",
+                inputs: ["Handoff (Interview)"],
+                outputs: [
+                    { to: "ideation", name: "Handoff para Ideation", content: "Problem Statement y preguntas HMW." }
+                ]
+            },
+            {
+                id: "ideation",
+                name: "Ideation Agent",
+                icon: Lightbulb,
+                phase: "ideation",
+                col: 0,
+                row: 6,
+                desc: "Generación de conceptos divergentes.",
+                inputs: ["Handoff (Insights)"],
+                outputs: [
+                    { to: "journey", name: "Handoff para User Journey", content: "Concepto Ganador (Big Idea)." }
+                ]
+            },
+            {
+                id: "journey",
+                name: "User Journey Agent",
+                icon: Map,
+                phase: "ideation",
+                col: 0,
+                row: 7,
+                desc: "Mapeo de la experiencia futura.",
+                inputs: ["Handoff (Ideation)"],
+                outputs: [
+                    { to: "usecases", name: "Handoff para Use Cases", content: "Momentos de la verdad y etapas críticas." }
+                ]
+            },
+            {
+                id: "usecases",
+                name: "Use Cases Agent",
+                icon: List,
+                phase: "ideation",
+                col: 0,
+                row: 8,
+                desc: "Requisitos funcionales detallados.",
+                inputs: ["Handoff (User Journey)"],
+                outputs: [
+                    { to: "architect", name: "Handoff para Architect", content: "Catálogo de Casos de Uso Priorizados." }
+                ]
+            },
+            {
+                id: "architect",
+                name: "Tech Architect Agent",
+                icon: Cpu,
+                phase: "ideation",
+                col: 0,
+                row: 9,
+                desc: "Validación técnica y arquitectura.",
+                inputs: ["Handoff (Use Cases)"],
+                outputs: [
+                    { to: "envision", name: "Handoff para Envision", content: "Requisitos validados (Viables) y restricciones." }
+                ]
+            },
+            {
+                id: "envision",
+                name: "Envision Agent",
+                icon: Eye,
+                phase: "vision",
+                col: 0,
+                row: 10,
+                desc: "Visión estratégica y principios.",
+                inputs: ["Handoff (Tech Architect)"],
+                outputs: [
+                    { to: "storyteller", name: "Handoff para Storyteller", content: "Vision Framework (VP, Principios)." }
+                ]
+            },
+            {
+                id: "storyteller",
+                name: "Storyteller Agent",
+                icon: BookOpen,
+                phase: "vision",
+                col: 0,
+                row: 11,
+                desc: "Narrativa persuasiva y escenarios.",
+                inputs: ["Handoff (Envision)"],
+                outputs: [
+                    { to: "content", name: "Handoff para Content", content: "Escenarios de valor y arco narrativo." }
+                ]
+            },
+            {
+                id: "content",
+                name: "Content Strategy",
+                icon: PenTool,
+                phase: "vision",
+                col: 0,
+                row: 12,
+                desc: "UX Writing y tono de voz.",
+                inputs: ["Handoff (Storyteller)"],
+                outputs: [
+                    { to: "prompt", name: "Handoff para Prototype", content: "Copy real, Glosario y Guía de Tono." }
+                ]
+            },
+            {
+                id: "prompt",
+                name: "Prompt to Prototype",
+                icon: Code,
+                phase: "delivery",
+                col: 0,
+                row: 13,
+                desc: "Generación del prompt de diseño final.",
+                inputs: ["Handoff (Content Strategy)"],
+                outputs: [
+                    { to: "end", name: "Final Output", content: "High-Fidelity Design Prompt listo para ejecutar." }
+                ]
+            },
+        ];
 
-            {/* Inputs Section */}
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 mb-6 relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-1 h-full bg-orange-400"></div>
-              <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2">
-                <ArrowRight className="w-4 h-4" /> Entrada Requerida (Input)
-              </h3>
-              <ul className="space-y-3">
-                {selectedAgent.inputs.map((input, idx) => (
-                  <li key={idx} className="flex items-start gap-3 p-3 bg-orange-50 rounded-lg border border-orange-100 text-slate-700">
-                    <FileText className="w-5 h-5 text-orange-400 shrink-0 mt-0.5" />
-                    <span className="text-sm font-medium">{input}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
+        function AgentFlowMap() {
+            const [selectedAgent, setSelectedAgent] = useState(agents[0]);
 
-            {/* Outputs Section */}
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-1 h-full bg-emerald-500"></div>
-              <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2">
-                <ArrowRight className="w-4 h-4" /> Handoff (Salida para Copiar)
-              </h3>
-              <div className="space-y-4">
-                {selectedAgent.outputs.map((output, idx) => (
-                  <div key={idx} className="group">
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded uppercase">
-                         ➔ {output.to === 'end' ? 'Final' : output.to.toUpperCase()}
-                      </span>
+            // Helper to draw SVG lines
+            const getPath = (start, end) => {
+                const rowHeight = 100;
+                const colWidth = 120;
+                const startX = 50 + (start.col * colWidth);
+                const startY = 50 + (start.row * rowHeight);
+                const endX = 50 + (end.col * colWidth);
+                const endY = 50 + (end.row * rowHeight);
+
+                // Straight line
+                if (start.col === end.col) {
+                    return `M ${startX} ${startY + 20} L ${endX} ${endY - 20}`;
+                }
+
+                // Branch out (Curve right)
+                if (end.col > start.col) {
+                    return `M ${startX} ${startY + 20} C ${startX} ${startY + 60}, ${endX} ${endY - 60}, ${endX} ${endY - 20}`;
+                }
+
+                // Merge back (Curve left)
+                if (end.col < start.col) {
+                    return `M ${startX} ${startY + 20} C ${startX} ${startY + 60}, ${endX} ${endY - 60}, ${endX} ${endY - 20}`;
+                }
+                return "";
+            };
+
+            return (
+                <div className="flex h-screen overflow-hidden">
+                    
+                    {/* LEFT PANEL: GRAPH */}
+                    <div className="flex-1 overflow-y-auto relative border-r border-gray-200 bg-white">
+                        <div className="p-8 min-h-[1600px] relative">
+                            <h2 className="text-2xl font-bold mb-6 text-slate-700 flex items-center gap-2">
+                                <GitBranch className="w-6 h-6" /> Flujo de Agentes
+                            </h2>
+                            
+                            {/* SVG Layer for Lines */}
+                            <svg className="absolute top-0 left-0 w-full h-full pointer-events-none z-0">
+                                <defs>
+                                    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                                        <polygon points="0 0, 10 3.5, 0 7" fill="#94a3b8" />
+                                    </marker>
+                                </defs>
+                                {agents.map(agent => {
+                                    return agent.outputs.map(out => {
+                                        const target = agents.find(a => a.id === out.to);
+                                        if (!target) return null;
+                                        return (
+                                            <path 
+                                                key={`${agent.id}-${target.id}`}
+                                                d={getPath(agent, target)}
+                                                fill="none"
+                                                stroke="#cbd5e1"
+                                                strokeWidth="3"
+                                                markerEnd="url(#arrowhead)"
+                                            />
+                                        );
+                                    });
+                                })}
+                            </svg>
+
+                            {/* Node Layer */}
+                            <div className="relative z-10 ml-8 mt-4">
+                                {agents.map((agent) => (
+                                    <div 
+                                        key={agent.id}
+                                        className={`absolute flex items-center gap-4 cursor-pointer transition-all duration-300 hover:scale-105`}
+                                        style={{
+                                            top: `${agent.row * 100}px`,
+                                            left: `${agent.col * 120}px`,
+                                        }}
+                                        onClick={() => setSelectedAgent(agent)}
+                                    >
+                                        {/* Circle Node */}
+                                        <div className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg border-4 ${
+                                            selectedAgent.id === agent.id ? 'ring-4 ring-offset-2 ring-blue-200 scale-110' : ''
+                                        } ${phases[agent.phase].color} ${phases[agent.phase].border} border-opacity-50`}>
+                                            <agent.icon className="w-6 h-6 text-white" />
+                                        </div>
+
+                                        {/* Label */}
+                                        <div className={`bg-white px-4 py-2 rounded-lg shadow-sm border border-gray-100 min-w-[180px] ${selectedAgent.id === agent.id ? 'border-blue-500 shadow-md' : ''}`}>
+                                            <p className="text-xs font-bold uppercase tracking-wider text-gray-400">{phases[agent.phase].label.split(":")[0]}</p>
+                                            <p className="font-semibold text-slate-700">{agent.name}</p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
                     </div>
-                    <div className="p-4 bg-slate-800 rounded-lg text-slate-200 font-mono text-sm relative group-hover:bg-slate-700 transition-colors cursor-pointer"
-                         onClick={() => {navigator.clipboard.writeText(output.content)}}
-                         title="Click para copiar"
-                    >
-                      <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity bg-white text-slate-900 text-xs px-2 py-1 rounded font-bold">Copiar</div>
-                      <p className="font-bold text-emerald-400 mb-1">{output.name}</p>
-                      <p>{output.content}</p>
+
+                    {/* RIGHT PANEL: INSPECTOR */}
+                    <div className="w-[450px] bg-slate-50 p-8 overflow-y-auto shadow-xl z-20 border-l border-gray-200">
+                        {selectedAgent ? (
+                            <div className="animate-fade-in-up">
+                                {/* Header */}
+                                <div className="mb-8">
+                                    <div className={`inline-block px-3 py-1 rounded-full text-xs font-bold uppercase mb-3 bg-white border ${phases[selectedAgent.phase].border} ${phases[selectedAgent.phase].text}`}>
+                                        {phases[selectedAgent.phase].label}
+                                    </div>
+                                    <h1 className="text-3xl font-bold text-slate-800 mb-2">{selectedAgent.name}</h1>
+                                    <p className="text-slate-500 text-lg leading-relaxed">{selectedAgent.desc}</p>
+                                </div>
+
+                                {/* Inputs Section */}
+                                <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 mb-6 relative overflow-hidden">
+                                    <div className="absolute top-0 left-0 w-1 h-full bg-orange-400"></div>
+                                    <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+                                        <ArrowRight className="w-4 h-4" /> Entrada Requerida (Input)
+                                    </h3>
+                                    <ul className="space-y-3">
+                                        {selectedAgent.inputs.map((input, idx) => (
+                                            <li key={idx} className="flex items-start gap-3 p-3 bg-orange-50 rounded-lg border border-orange-100 text-slate-700">
+                                                <FileText className="w-5 h-5 text-orange-400 shrink-0 mt-0.5" />
+                                                <span className="text-sm font-medium">{input}</span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+
+                                {/* Outputs Section */}
+                                <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 relative overflow-hidden">
+                                    <div className="absolute top-0 left-0 w-1 h-full bg-emerald-500"></div>
+                                    <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+                                        <ArrowRight className="w-4 h-4" /> Handoff (Salida para Copiar)
+                                    </h3>
+                                    <div className="space-y-4">
+                                        {selectedAgent.outputs.map((output, idx) => (
+                                            <div key={idx} className="group">
+                                                <div className="flex justify-between items-center mb-2">
+                                                    <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded uppercase">
+                                                         ➔ {output.to === 'end' ? 'Final' : output.to.toUpperCase()}
+                                                    </span>
+                                                </div>
+                                                <div className="p-4 bg-slate-800 rounded-lg text-slate-200 font-mono text-sm relative group-hover:bg-slate-700 transition-colors cursor-pointer"
+                                                     onClick={() => {navigator.clipboard.writeText(output.content); alert('Copiado al portapapeles: ' + output.content)}}
+                                                     title="Click para copiar"
+                                                >
+                                                    <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity bg-white text-slate-900 text-xs px-2 py-1 rounded font-bold">Copiar</div>
+                                                    <p className="font-bold text-emerald-400 mb-1">{output.name}</p>
+                                                    <p>{output.content}</p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {selectedAgent.id === 'stakeholder' && (
+                                   <div className="mt-6 p-4 bg-blue-50 text-blue-700 text-sm rounded-lg border border-blue-100">
+                                     <strong>Nota de Flujo:</strong> Esta es una rama paralela. Su salida debe copiarse junto con la del Benchmark Agent para alimentar al Interview Agent.
+                                   </div>
+                                )}
+
+                            </div>
+                        ) : (
+                            <div className="h-full flex flex-col items-center justify-center text-gray-400">
+                                <GitBranch className="w-16 h-16 mb-4 opacity-20" />
+                                <p>Selecciona un agente del mapa para ver sus detalles.</p>
+                            </div>
+                        )}
                     </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+                </div>
+            );
+        }
 
-            {selectedAgent.id === 'stakeholder' && (
-               <div className="mt-6 p-4 bg-blue-50 text-blue-700 text-sm rounded-lg border border-blue-100">
-                 <strong>Nota de Flujo:</strong> Esta es una rama paralela. Su salida debe copiarse junto con la del Benchmark Agent para alimentar al Interview Agent.
-               </div>
-            )}
-
-          </div>
-        ) : (
-          <div className="h-full flex flex-col items-center justify-center text-gray-400">
-            <GitBranch className="w-16 h-16 mb-4 opacity-20" />
-            <p>Selecciona un agente del mapa para ver sus detalles.</p>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
+        const root = createRoot(document.getElementById('root'));
+        root.render(<AgentFlowMap />);
+    </script>
+</body>
+</html>
